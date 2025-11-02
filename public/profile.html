@@ -206,6 +206,20 @@
             background: #5568d3;
         }
     </style>
+    <style>
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 200; }
+        .modal.hidden { display: none; }
+        .modal-content { background: #fff; padding: 1.5rem; border-radius: 10px; width: 100%; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .modal-content h3 { margin-bottom: 1rem; color: #333; }
+        .form-row { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+        .form-row label { font-weight: 600; color: #333; }
+        .form-row input { padding: 0.6rem 0.8rem; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 0.5rem; }
+        .btn { padding: 0.6rem 1.1rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
+        .btn.cancel { background: #e0e0e0; }
+        .btn.save { background: #667eea; color: #fff; }
+        .error-msg { color: #b00020; font-size: 13px; min-height: 18px; }
+    </style>
 </head>
 <body>
     <!-- Header -->
@@ -253,6 +267,25 @@
                     <div class="info-row"><span class="info-label">Nr. of Books:</span><span class="info-value" id="profileNrBooks">Loading...</span></div>
                 </div>
                 <button class="edit-btn" id="editProfile">Edit Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Edit Profile</h3>
+            <div class="form-row">
+                <label for="editNickname">Nickname</label>
+                <input id="editNickname" type="text" placeholder="Your nickname" />
+            </div>
+            <div class="form-row">
+                <label for="editEmail">Email</label>
+                <input id="editEmail" type="email" placeholder="you@example.com" />
+            </div>
+            <div class="error-msg" id="editError"></div>
+            <div class="modal-actions">
+                <button class="btn cancel" id="cancelEdit">Cancel</button>
+                <button class="btn save" id="saveEdit">Save</button>
             </div>
         </div>
     </div>

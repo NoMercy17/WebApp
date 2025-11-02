@@ -12,6 +12,41 @@ service cloud.firestore {
       
       // Allow users to update/delete only their own document
       allow update, delete: if request.auth != null && request.auth.uid == userId;
+
+      // User's library subcollection
+      match /library/{bookId} {
+        // Owner can read and write their library
+        // Friends can read the library if they have an accepted friendship
+        allow read: if request.auth != null && (
+          request.auth.uid == userId ||
+          exists(/databases/$(database)/documents/users/$(userId)/friends/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(userId)/friends/$(request.auth.uid)).data.status == "accepted"
+        );
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // User's friends subcollection
+      match /friends/{friendId} {
+        // Read: users can read their own friends list
+        allow read: if request.auth != null && request.auth.uid == userId;
+
+        // Create rules: allow if authenticated and either:
+        // 1. Creating in your own list (userId == current user)
+        // 2. Creating a counterpart doc in the other person's list (friendId == current user)
+        allow create: if request.auth != null && (
+          request.auth.uid == userId ||
+          request.auth.uid == friendId
+        );
+
+        // Update rules: allow owner or the friend to update
+        allow update: if request.auth != null && (
+          request.auth.uid == userId ||
+          request.auth.uid == friendId
+        );
+
+        // Delete rules: either party can remove the relationship from either side
+        allow delete: if request.auth != null && (request.auth.uid == userId || request.auth.uid == friendId);
+      }
     }
     
     // Default: Deny all other collections
