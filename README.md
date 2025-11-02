@@ -1,102 +1,34 @@
-# 📚 Firebase Book Library# 📚 Firebase Book Library# 📚 Book Library Project
+# Book Library Project
 
-A modern book library management system with social features built using Firebase and Google Books API.A modern, feature-rich book library management system built with Firebase, featuring social networking capabilities for book lovers.A Firebase-powered web application for managing personal book collections with social features.
+A web app for managing book collections with friends. Built with Firebase and Google Books API.
 
-## Features![Firebase](https://img.shields.io/badge/Firebase-v10.11.1-orange?logo=firebase)**Team**: Nemes Ioana, Stiube Antonio, Luca-Sfia Davide
+## What it does
 
-### 📖 Book Management![License](https://img.shields.io/badge/license-MIT-blue)**Firebase Project**: `book-library-project-b336d`
+- Search and save books from Google Books
+- Build your personal library
+- Add friends and view their libraries
+- Edit your profile
 
-- Search books using Google Books API
+## Setup
 
-- Add books to your personal library![Status](https://img.shields.io/badge/status-active-success)
+1. Clone this repo
+2. Get Firebase config from your Firebase project
+3. Copy `public/firebaseConfig.example.js` to `public/firebaseConfig.js` and add your credentials
+4. Deploy Firestore rules: `firebase deploy --only firestore:rules`
+5. Run `run.bat` (Windows) or `python3 -m http.server 5500` from public folder
+6. Open http://localhost:5500
 
-- View book details (cover, title, author)
+## Pages
 
-- Delete books from your collection---
+- index.html - Login/Register
+- homepage.html - Search books
+- collections.html - Your library
+- friends.html - Friend system
+- profile.html - Edit profile
 
-### 👥 Friends System## 🌟 Features
+## Tech
 
-- Search for users by nickname
-
-- Send/Accept/Decline friend requests## ✨ Features
-
-- View friends' book libraries
-
-- Remove friends### 📖 Book Management
-
-### 🔐 Authentication- **Google Books Integration**: Search and add books directly from Google Books API### 🔐 Authentication
-
-- Email/Password login
-
-- Google Sign-In- **Personal Collections**: Build and manage your personal book library
-
-- Edit profile (nickname and email)
-
-- **Book Details**: View cover images, titles, authors, and descriptions- Email/Password registration and login
-
-## Quick Start
-
-- **Quick Actions**: Add, view, and delete books from your collection- Google Sign-In (OAuth)
-
-1. **Clone the repository**
-
-   ```bash- Facebook Login (configured)
-
-   git clone https://github.com/Davide-glitch/Project-SSD.git
-
-   cd Project-SSD### 👥 Social Features- Secure session management
-
-   ```
-
-- **Friend System**: Connect with other book enthusiasts
-
-2. **Configure Firebase**
-
-   - Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com/)- **Friend Requests**: Send, accept, or decline friend requests### 📖 Book Management
-
-   - Enable Email/Password and Google authentication
-
-   - Create a Firestore database- **3-Mode Smart Button**: Dynamic button states (Send Request → Request Sent → Friends)
-
-   - Copy `public/firebaseConfig.example.js` to `public/firebaseConfig.js`
-
-   - Add your Firebase credentials- **View Friends' Libraries**: Browse books in your friends' collections- Search books via **Google Books API**
-
-3. **Deploy Firestore Rules**- **Real-time Updates**: Instant synchronization across all users- View book covers, titles, authors, descriptions
-
-   ```
-
-   firebase deploy --only firestore:rules- Save books to personal library
-
-   ```
-
-### 🔐 Authentication- View and manage collections
-
-4. **Run the app**
-
-   - **Email/Password Login**: Traditional authentication method- Remove books from library
-
-   Windows:
-
-   ````bash- **Google OAuth**: Quick sign-in with Google account- Search within your collection
-
-   run.bat
-
-   ```- **Profile Management**: Edit nickname and email
-
-
-
-   Linux/Mac:- **Secure Sessions**: Firebase Authentication integration### 👥 Social Features
-
-   ```bash
-
-   cd public### 🎨 User Interface- Search for users by nickname
-
-   python3 -m http.server 5500
-
-   ```- **Modern Design**: Clean, gradient-based UI with smooth animations- Send and receive friend requests
-
-   ````
+HTML, CSS, JavaScript, Firebase Auth, Firestore, Google Books API
 
 5. **Open browser**- **Responsive Layout**: Works seamlessly on desktop and mobile devices- Accept/decline friend requests
 
