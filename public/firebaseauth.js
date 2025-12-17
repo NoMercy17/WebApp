@@ -4,7 +4,6 @@ import {
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword,
     GoogleAuthProvider,
-    FacebookAuthProvider,
     signInWithPopup,
     signInWithRedirect,
     getRedirectResult,
@@ -74,13 +73,12 @@ function showMessage(message, divId) {
     }
 }
 
-// Function to handle SIGN UP with social providers (Google/Facebook)
+// Function to handle SIGN UP with social providers (Google)
 async function handleSocialSignUp(user, provider, messageDiv) {
     try {
         const userDocRef = doc(db, "users", user.uid);
         const userDoc = await getDoc(userDocRef);
         
-        // Check if user already exists
         if (userDoc.exists()) {
             // User already has an account - this shouldn't happen on sign up
             showMessage('This account already exists. Please use Sign In instead.', messageDiv);
@@ -134,13 +132,12 @@ async function handleSocialSignUp(user, provider, messageDiv) {
     }
 }
 
-// Function to handle SIGN IN with social providers (Google/Facebook)
+// Function to handle SIGN IN with social providers (Google)
 async function handleSocialSignIn(user, provider, messageDiv) {
     try {
         const userDocRef = doc(db, "users", user.uid);
         const userDoc = await getDoc(userDocRef);
         
-        // Check if user exists
         if (!userDoc.exists()) {
             // User doesn't have an account - redirect to sign up
             showMessage('No account found. Please Sign Up first.', messageDiv);
@@ -169,7 +166,7 @@ async function handleSocialSignIn(user, provider, messageDiv) {
             console.log("Redirect successful:", result.user.email);
             
             const providerId = result.providerId || result.user.providerData[0]?.providerId;
-            const provider = providerId === 'facebook.com' ? 'facebook' : 'google';
+            const provider = 'google';
             
             // Check if this was a sign up or sign in attempt
             // We'll use sessionStorage to track this
@@ -432,96 +429,6 @@ if (googleSignInBtn) {
                 alert("Configuration Error: Please add '" + window.location.origin + "' to authorized domains in Firebase Console.");
             } else {
                 showMessage("Google Sign-In failed: " + error.message, 'signInMessage');
-            }
-        }
-    });
-}
-
-// Facebook Sign-Up (from Sign Up form)
-const facebookSignUpBtn = document.getElementById('facebookSignUpBtn');
-
-if (facebookSignUpBtn) {
-    facebookSignUpBtn.addEventListener('click', async () => {
-        const provider = new FacebookAuthProvider();
-        provider.addScope('email');
-        provider.addScope('public_profile');
-        
-        try {
-            const result = await signInWithPopup(auth, provider);
-            const success = await handleSocialSignUp(result.user, 'facebook', 'signUpMessage');
-            
-            if (success) {
-                showMessage('Sign up successful! Redirecting...', 'signUpMessage');
-                setTimeout(() => {
-                    window.location.href = "homepage.html";
-                }, 1000);
-            }
-            
-        } catch (error) {
-            console.error("Facebook Sign-Up error:", error.code);
-            
-            if (error.code === 'auth/popup-blocked') {
-                showMessage('Popup blocked. Using redirect instead...', 'signUpMessage');
-                sessionStorage.setItem('socialAuthType', 'signup');
-                try {
-                    await signInWithRedirect(auth, provider);
-                } catch (redirectError) {
-                    console.error("Redirect failed:", redirectError);
-                    showMessage("Unable to sign in with Facebook", 'signUpMessage');
-                }
-            } else if (error.code === 'auth/popup-closed-by-user') {
-                showMessage('Sign-in cancelled', 'signUpMessage');
-            } else if (error.code === 'auth/account-exists-with-different-credential') {
-                showMessage('An account already exists with this email using a different sign-in method', 'signUpMessage');
-            } else if (error.code === 'auth/unauthorized-domain') {
-                alert("Configuration Error: Please add '" + window.location.origin + "' to authorized domains in Firebase Console.");
-            } else {
-                showMessage("Facebook Sign-Up failed: " + error.message, 'signUpMessage');
-            }
-        }
-    });
-}
-
-// Facebook Sign-In (from Sign In form)
-const facebookSignInBtn = document.getElementById('facebookSignInBtn');
-
-if (facebookSignInBtn) {
-    facebookSignInBtn.addEventListener('click', async () => {
-        const provider = new FacebookAuthProvider();
-        provider.addScope('email');
-        provider.addScope('public_profile');
-        
-        try {
-            const result = await signInWithPopup(auth, provider);
-            const success = await handleSocialSignIn(result.user, 'facebook', 'signInMessage');
-            
-            if (success) {
-                showMessage('Sign in successful! Redirecting...', 'signInMessage');
-                setTimeout(() => {
-                    window.location.href = "homepage.html";
-                }, 1000);
-            }
-            
-        } catch (error) {
-            console.error("Facebook Sign-In error:", error.code);
-            
-            if (error.code === 'auth/popup-blocked') {
-                showMessage('Popup blocked. Using redirect instead...', 'signInMessage');
-                sessionStorage.setItem('socialAuthType', 'signin');
-                try {
-                    await signInWithRedirect(auth, provider);
-                } catch (redirectError) {
-                    console.error("Redirect failed:", redirectError);
-                    showMessage("Unable to sign in with Facebook", 'signInMessage');
-                }
-            } else if (error.code === 'auth/popup-closed-by-user') {
-                showMessage('Sign-in cancelled', 'signInMessage');
-            } else if (error.code === 'auth/account-exists-with-different-credential') {
-                showMessage('An account already exists with this email using a different sign-in method', 'signInMessage');
-            } else if (error.code === 'auth/unauthorized-domain') {
-                alert("Configuration Error: Please add '" + window.location.origin + "' to authorized domains in Firebase Console.");
-            } else {
-                showMessage("Facebook Sign-In failed: " + error.message, 'signInMessage');
             }
         }
     });
