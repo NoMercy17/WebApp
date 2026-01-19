@@ -4,13 +4,15 @@ import {
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword,
     GoogleAuthProvider,
-    FacebookAuthProvider,
     signInWithPopup,
     signInWithRedirect,
     getRedirectResult,
     setPersistence,
     browserLocalPersistence,
-    onAuthStateChanged
+    onAuthStateChanged,
+    sendEmailVerification,
+    updateProfile,
+    applyActionCode
 } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-auth.js";
 
 import { 
@@ -31,498 +33,370 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Set persistence to LOCAL
-setPersistence(auth, browserLocalPersistence).catch((error) => {
-    console.error("Persistence error:", error);
-});
+// Persist login
+setPersistence(auth, browserLocalPersistence).catch(console.error);
 
-// Utility function to check if nickname is unique
-async function isNicknameUnique(nickname) {
-    try {
-        const normalizedNickname = nickname.trim().toLowerCase();
-        console.log("Checking nickname uniqueness for:", normalizedNickname);
-        
-        const q = query(
-            collection(db, "users"), 
-            where("nicknameLower", "==", normalizedNickname)
-        );
-        
-        const querySnapshot = await getDocs(q);
-        const isUnique = querySnapshot.empty;
-        
-        console.log("Nickname unique:", isUnique);
-        return isUnique;
-    } catch (error) {
-        console.error("Error checking nickname:", error);
-        throw error;
-    }
-}
-
-// Utility function to show messages
-function showMessage(message, divId) {
-    const messageDiv = document.getElementById(divId);
-    if (messageDiv) {
-        messageDiv.style.display = "block";
-        messageDiv.innerHTML = message;
-        messageDiv.style.opacity = 1;
-        setTimeout(function() {
-            messageDiv.style.opacity = 0;
-            setTimeout(() => {
-                messageDiv.style.display = "none";
-            }, 300);
-        }, 5000);
-    }
-}
-
-// Function to handle SIGN UP with social providers (Google/Facebook)
-async function handleSocialSignUp(user, provider, messageDiv) {
-    try {
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-        
-        // Check if user already exists
-        if (userDoc.exists()) {
-            // User already has an account - this shouldn't happen on sign up
-            showMessage('This account already exists. Please use Sign In instead.', messageDiv);
-            await auth.signOut();
-            return false;
-        }
-        
-        // New user - prompt for nickname
-        let nickname = null;
-        let isUnique = false;
-        
-        while (!nickname || nickname.trim().length < 3 || !isUnique) {
-            nickname = prompt("Welcome! Please enter a unique nickname (minimum 3 characters):");
-            
-            if (nickname === null) {
-                alert("A nickname is required to complete registration.");
-                await auth.signOut();
-                return false;
-            }
-            
-            if (nickname.trim().length < 3) {
-                alert("Nickname must be at least 3 characters long.");
-                continue;
-            }
-            
-            // Check if nickname is unique
-            isUnique = await isNicknameUnique(nickname);
-            if (!isUnique) {
-                alert("This nickname is already taken. Please choose another one.");
-            }
-        }
-        
-        await setDoc(userDocRef, {
-            email: user.email,
-            nickname: nickname.trim(),
-            nicknameLower: nickname.trim().toLowerCase(),
-            uid: user.uid,
-            createdAt: new Date().toISOString(),
-            provider: provider,
-            displayName: user.displayName || nickname.trim(),
-            photoURL: user.photoURL || null
-        });
-        
-        console.log("User registered:", user.email);
-        localStorage.setItem("loggedInUserId", user.uid);
-        return true;
-    } catch (error) {
-        console.error("Error handling social sign up:", error);
-        showMessage("Error: " + error.message, messageDiv);
-        return false;
-    }
-}
-
-// Function to handle SIGN IN with social providers (Google/Facebook)
-async function handleSocialSignIn(user, provider, messageDiv) {
-    try {
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-        
-        // Check if user exists
-        if (!userDoc.exists()) {
-            // User doesn't have an account - redirect to sign up
-            showMessage('No account found. Please Sign Up first.', messageDiv);
-            await auth.signOut();
-            return false;
-        }
-        
-        // User exists - sign in successful
-        console.log("User signed in:", user.email);
-        localStorage.setItem("loggedInUserId", user.uid);
-        return true;
-    } catch (error) {
-        console.error("Error handling social sign in:", error);
-        showMessage("Error: " + error.message, messageDiv);
-        return false;
-    }
-}
-
-// Check for redirect result on page load
+// Check for email verification action code
 (async () => {
-    try {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        const result = await getRedirectResult(auth);
-        
-        if (result && result.user) {
-            console.log("Redirect successful:", result.user.email);
-            
-            const providerId = result.providerId || result.user.providerData[0]?.providerId;
-            const provider = providerId === 'facebook.com' ? 'facebook' : 'google';
-            
-            // Check if this was a sign up or sign in attempt
-            // We'll use sessionStorage to track this
-            const isSignUpAttempt = sessionStorage.getItem('socialAuthType') === 'signup';
-            sessionStorage.removeItem('socialAuthType');
-            
-            let success;
-            if (isSignUpAttempt) {
-                success = await handleSocialSignUp(result.user, provider, 'signInMessage');
-            } else {
-                success = await handleSocialSignIn(result.user, provider, 'signInMessage');
-            }
-            
-            if (success) {
-                window.location.href = "homepage.html";
-            }
-        }
-    } catch (error) {
-        console.error("Redirect error:", error);
-        
-        if (error.code === 'auth/unauthorized-domain') {
-            alert("Configuration Error: This domain is not authorized in Firebase Console.\n\nPlease add '" + window.location.origin + "' to authorized domains.");
-        } else if (error.code === 'auth/operation-not-allowed') {
-            alert("Social Sign-In is not enabled in Firebase Console.");
-        } else {
-            showMessage("Sign-In error: " + error.message, 'signInMessage');
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode');
+    const oobCode = urlParams.get('oobCode');
+    
+    if (mode === 'verifyEmail' && oobCode) {
+        try {
+            await applyActionCode(auth, oobCode);
+            showMessage("Email verified successfully! You can now sign in.", "signInMessage");
+            document.getElementById("signin").classList.remove("hidden");
+            document.getElementById("signup").classList.add("hidden");
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (error) {
+            console.error("Email verification failed:", error);
+            showMessage("Failed to verify email. The link may be expired or invalid.", "signInMessage");
         }
     }
 })();
 
-// Monitor auth state changes
+// Helpers
+async function isNicknameUnique(nickname) {
+    const normalized = nickname.trim().toLowerCase();
+    const q = query(collection(db, "users"), where("nicknameLower", "==", normalized));
+    const snap = await getDocs(q);
+    return snap.empty;
+}
+
+function showMessage(message, divId) {
+    const el = document.getElementById(divId);
+    if (!el) return;
+    el.style.display = "block";
+    el.innerHTML = message;
+    el.style.opacity = 1;
+    setTimeout(() => {
+        el.style.opacity = 0;
+        setTimeout(() => el.style.display = "none", 300);
+    }, 10000);
+}
+
+// Social (Google only)
+async function handleGoogleSignUp(user, messageDiv) {
+    const ref = doc(db, "users", user.uid);
+    const snap = await getDoc(ref);
+
+    if (snap.exists()) {
+        showMessage("Account already exists. Please sign in.", messageDiv);
+        await auth.signOut();
+        return false;
+    }
+
+    let nickname = null;
+    let unique = false;
+
+    while (!unique) {
+        nickname = prompt("Choose a unique nickname (min 3 characters):");
+        if (!nickname || nickname.trim().length < 3) continue;
+        unique = await isNicknameUnique(nickname);
+        if (!unique) alert("Nickname already taken.");
+    }
+
+    await setDoc(ref, {
+        uid: user.uid,
+        email: user.email,
+        nickname: nickname.trim(),
+        nicknameLower: nickname.trim().toLowerCase(),
+        provider: "google",
+        emailVerified: user.emailVerified,
+        createdAt: new Date().toISOString()
+    });
+
+    localStorage.setItem("loggedInUserId", user.uid);
+    return true;
+}
+
+async function handleGoogleSignIn(user, messageDiv) {
+    const ref = doc(db, "users", user.uid);
+    const snap = await getDoc(ref);
+
+    if (!snap.exists()) {
+        showMessage("No account found. Please sign up first.", messageDiv);
+        await auth.signOut();
+        return false;
+    }
+
+    localStorage.setItem("loggedInUserId", user.uid);
+    return true;
+}
+
+// Redirect handling
+(async () => {
+    try {
+        const result = await getRedirectResult(auth);
+        if (!result || !result.user) return;
+
+        const isSignup = sessionStorage.getItem("socialAuthType") === "signup";
+        sessionStorage.removeItem("socialAuthType");
+
+        const success = isSignup
+            ? await handleGoogleSignUp(result.user, "signUpMessage")
+            : await handleGoogleSignIn(result.user, "signInMessage");
+
+        if (success) window.location.href = "homepage.html";
+    } catch (e) {
+        console.error("Redirect error:", e);
+        showMessage(e.message, "signInMessage");
+    }
+})();
+
+// Auth state
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        console.log("User signed in:", user.email);
+        console.log("User logged in:", user.email);
     }
 });
 
-// Form Toggle
-const signUpContainer = document.getElementById('signup');
-const signInContainer = document.getElementById('signin');
-const signUpLink = document.getElementById('signUpLink');
-const signInLink = document.getElementById('signInLink');
+// Form toggle
+document.getElementById("signUpLink")?.addEventListener("click", e => {
+    e.preventDefault();
+    document.getElementById("signup").classList.remove("hidden");
+    document.getElementById("signin").classList.add("hidden");
+});
 
-if (signInLink) {
-    signInLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        signUpContainer.classList.add('hidden');
-        signInContainer.classList.remove('hidden');
-    });
-}
+document.getElementById("signInLink")?.addEventListener("click", e => {
+    e.preventDefault();
+    document.getElementById("signin").classList.remove("hidden");
+    document.getElementById("signup").classList.add("hidden");
+});
 
-if (signUpLink) {
-    signUpLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        signInContainer.classList.add('hidden');
-        signUpContainer.classList.remove('hidden');
-    });
-}
+// Email Sign-Up
+document.getElementById("submitSignUp")?.addEventListener("click", async e => {
+    e.preventDefault();
 
-// Sign Up with Email/Password
-const signUp = document.getElementById('submitSignUp');
-if (signUp) {
-    signUp.addEventListener('click', async (event) => {
-        event.preventDefault();
+    const email = document.getElementById("rEmail").value;
+    const password = document.getElementById("rPassword").value;
+    const nickname = document.getElementById("nickname").value;
+
+    // Validation
+    if (!email || !password || !nickname) {
+        showMessage("Please fill in all fields", "signUpMessage");
+        return;
+    }
+
+    if (nickname.trim().length < 3) {
+        showMessage("Nickname must be at least 3 characters", "signUpMessage");
+        return;
+    }
+
+    if (password.length < 6) {
+        showMessage("Password must be at least 6 characters", "signUpMessage");
+        return;
+    }
+
+    if (!(await isNicknameUnique(nickname))) {
+        showMessage("Nickname already taken", "signUpMessage");
+        return;
+    }
+
+    try {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
         
-        console.log("Sign up button clicked");
+        await updateProfile(cred.user, {
+            displayName: nickname.trim()
+        });
+
+        const actionCodeSettings = {
+            url: window.location.origin + '/index.html',
+            handleCodeInApp: true
+        };
         
-        const email = document.getElementById('rEmail').value;
-        const password = document.getElementById('rPassword').value;
-        const nickname = document.getElementById('nickname').value;
-
-        console.log("Form values - Email:", email, "Nickname:", nickname);
-
-        if (!email || !password || !nickname) {
-            showMessage('Please fill all fields', 'signUpMessage');
-            return;
-        }
-
-        if (nickname.trim().length < 3) {
-            showMessage('Nickname must be at least 3 characters', 'signUpMessage');
-            return;
-        }
-
         try {
-            // Check if nickname is unique
-            showMessage('Checking nickname availability...', 'signUpMessage');
-            const isUnique = await isNicknameUnique(nickname);
-            
-            if (!isUnique) {
-                showMessage('This nickname is already taken. Please choose another one.', 'signUpMessage');
-                return;
-            }
-
-            showMessage('Creating account...', 'signUpMessage');
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-            
-            const userData = {
-                email: email,
-                nickname: nickname.trim(),
-                nicknameLower: nickname.trim().toLowerCase(),
-                uid: user.uid,
-                createdAt: new Date().toISOString(),
-                provider: 'email'
-            };
-            
-            showMessage('Saving user data...', 'signUpMessage');
-            
-            const docRef = doc(db, "users", user.uid);
-            await setDoc(docRef, userData);
-            
-            showMessage('Account Created Successfully', 'signUpMessage');
-            
-            document.getElementById('rEmail').value = '';
-            document.getElementById('rPassword').value = '';
-            document.getElementById('nickname').value = '';
-            
-            localStorage.setItem('loggedInUserId', user.uid);
-            console.log("Account created:", email);
-            
-            setTimeout(() => {
-                window.location.href = "homepage.html";
-            }, 1500);
-            
-        } catch (error) {
-            console.error("Sign up error:", error);
-            const errorCode = error.code;
-            if (errorCode === 'auth/email-already-in-use') {
-                showMessage("Email Address already in use!", 'signUpMessage');
-            } else if (errorCode === 'auth/weak-password') {
-                showMessage("Password should be at least 6 characters", 'signUpMessage');
-            } else if (errorCode === 'auth/invalid-email') {
-                showMessage("Invalid email address", 'signUpMessage');
-            } else {
-                showMessage("Unable to create user: " + error.message, 'signUpMessage');
-            }
+            await sendEmailVerification(cred.user, actionCodeSettings);
+        } catch (emailError) {
+            console.error("Email send failed, trying fallback:", emailError);
+            await sendEmailVerification(cred.user);
         }
-    });
-}
 
-// Sign In with Email/Password
-const signIn = document.getElementById('submitSignIn');
-if (signIn) {
-    signIn.addEventListener('click', async (event) => {
-        event.preventDefault();
+        await setDoc(doc(db, "users", cred.user.uid), {
+            uid: cred.user.uid,
+            email,
+            nickname: nickname.trim(),
+            nicknameLower: nickname.trim().toLowerCase(),
+            provider: "email",
+            emailVerified: false,
+            createdAt: new Date().toISOString()
+        });
+
+        showMessage(
+            `<strong>Account Created Successfully!</strong><br><br>
+            Verification email sent to: <strong>${email}</strong><br><br>
+            <strong>Next Steps:</strong><br>
+            1. Check your email inbox (and spam/junk folder)<br>
+            2. Click the verification link in the email<br>
+            3. You'll be redirected back here automatically<br>
+            4. Then sign in with your credentials<br><br>
+            <strong>You cannot sign in until you verify your email.</strong><br><br>
+            <em>If you don't receive the email within 5 minutes, use the "Resend" button on the sign-in page.</em>`,
+            "signUpMessage"
+        );
+
+        document.getElementById("rEmail").value = "";
+        document.getElementById("rPassword").value = "";
+        document.getElementById("nickname").value = "";
+
+        await auth.signOut();
+
+    } catch (e) {
+        console.error("Sign up error:", e);
         
-        const email = document.getElementById('logEmail').value;
-        const password = document.getElementById('logPassword').value;
+        let errorMessage = "Sign up failed. ";
+        if (e.code === 'auth/email-already-in-use') {
+            errorMessage = "This email is already registered. Please sign in instead.";
+        } else if (e.code === 'auth/invalid-email') {
+            errorMessage = "Invalid email address format.";
+        } else if (e.code === 'auth/weak-password') {
+            errorMessage = "Password is too weak. Use at least 6 characters.";
+        } else if (e.code === 'auth/network-request-failed') {
+            errorMessage = "Network error. Please check your internet connection.";
+        } else if (e.code === 'auth/operation-not-allowed') {
+            errorMessage = "Email/password sign-in is not enabled. Please contact support.";
+        } else {
+            errorMessage += e.message || "Unknown error occurred.";
+        }
+        
+        showMessage(errorMessage, "signUpMessage");
+    }
+});
 
-        if (!email || !password) {
-            showMessage('Please fill all fields', 'signInMessage');
+// Email Sign-In
+document.getElementById("submitSignIn")?.addEventListener("click", async e => {
+    e.preventDefault();
+
+    const email = document.getElementById("logEmail").value;
+    const password = document.getElementById("logPassword").value;
+
+    if (!email || !password) {
+        showMessage("Please enter email and password", "signInMessage");
+        return;
+    }
+
+    try {
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        
+        if (!cred.user.emailVerified) {
+            showMessage(
+                `<strong>Email Not Verified</strong><br><br>
+                You must verify your email before signing in.<br><br>
+                <strong>Check your inbox for the verification email.</strong><br><br>
+                Didn't receive it? Click "Resend Verification Email" below.`,
+                "signInMessage"
+            );
+            await auth.signOut();
             return;
         }
+        
+        localStorage.setItem("loggedInUserId", cred.user.uid);
+        
+        const ref = doc(db, "users", cred.user.uid);
+        await setDoc(ref, { emailVerified: true }, { merge: true });
+        
+        window.location.href = "homepage.html";
+        
+    } catch (e) {
+        console.error("Sign in error:", e);
+        
+        let errorMessage = "Sign in failed. ";
+        if (e.code === 'auth/user-not-found') {
+            errorMessage = "No account found with this email. Please sign up first.";
+        } else if (e.code === 'auth/wrong-password') {
+            errorMessage = "Incorrect password. Please try again.";
+        } else if (e.code === 'auth/invalid-credential') {
+            errorMessage = "Invalid email or password.";
+        } else if (e.code === 'auth/too-many-requests') {
+            errorMessage = "Too many failed attempts. Please try again later or reset your password.";
+        } else if (e.code === 'auth/user-disabled') {
+            errorMessage = "This account has been disabled.";
+        } else {
+            errorMessage += e.message;
+        }
+        
+        showMessage(errorMessage, "signInMessage");
+    }
+});
 
-        try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-            localStorage.setItem('loggedInUserId', user.uid);
-            console.log("Signed in:", email);
+// Google buttons
+document.getElementById("googleSignUpBtn")?.addEventListener("click", async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+        const res = await signInWithPopup(auth, provider);
+        if (await handleGoogleSignUp(res.user, "signUpMessage")) {
             window.location.href = "homepage.html";
-            
-        } catch (error) {
-            console.error("Sign in error:", error);
-            const errorCode = error.code;
-            if (errorCode === 'auth/invalid-credential' || errorCode === 'auth/wrong-password') {
-                showMessage('Invalid email or password', 'signInMessage');
-            } else if (errorCode === 'auth/user-not-found') {
-                showMessage('No account found with this email', 'signInMessage');
-            } else if (errorCode === 'auth/invalid-email') {
-                showMessage('Invalid email address', 'signInMessage');
-            } else if (errorCode === 'auth/too-many-requests') {
-                showMessage('Too many failed attempts. Please try again later', 'signInMessage');
-            } else {
-                showMessage('Unable to sign in', 'signInMessage');
-            }
         }
-    });
-}
+    } catch (e) {
+        console.error("Google sign up error:", e);
+        sessionStorage.setItem("socialAuthType", "signup");
+        await signInWithRedirect(auth, provider);
+    }
+});
 
-// Google Sign-Up (from Sign Up form)
-const googleSignUpBtn = document.getElementById('googleSignUpBtn');
+document.getElementById("googleSignInBtn")?.addEventListener("click", async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+        const res = await signInWithPopup(auth, provider);
+        if (await handleGoogleSignIn(res.user, "signInMessage")) {
+            window.location.href = "homepage.html";
+        }
+    } catch (e) {
+        console.error("Google sign in error:", e);
+        sessionStorage.setItem("socialAuthType", "signin");
+        await signInWithRedirect(auth, provider);
+    }
+});
 
-if (googleSignUpBtn) {
-    googleSignUpBtn.addEventListener('click', async () => {
-        const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({
-            prompt: 'select_account'
-        });
+// Resend verification email
+window.resendVerificationEmail = async function() {
+    const email = document.getElementById("logEmail")?.value;
+    const password = document.getElementById("logPassword")?.value;
+    
+    if (!email || !password) {
+        showMessage("Please enter your email and password first, then click Resend.", "signInMessage");
+        return;
+    }
+    
+    try {
+        const cred = await signInWithEmailAndPassword(auth, email, password);
         
-        try {
-            const result = await signInWithPopup(auth, provider);
-            const success = await handleSocialSignUp(result.user, 'google', 'signUpMessage');
-            
-            if (success) {
-                showMessage('Sign up successful! Redirecting...', 'signUpMessage');
-                setTimeout(() => {
-                    window.location.href = "homepage.html";
-                }, 1000);
-            }
-            
-        } catch (error) {
-            console.error("Google Sign-Up error:", error.code);
-            
-            if (error.code === 'auth/popup-blocked') {
-                showMessage('Popup blocked. Using redirect instead...', 'signUpMessage');
-                sessionStorage.setItem('socialAuthType', 'signup');
-                try {
-                    await signInWithRedirect(auth, provider);
-                } catch (redirectError) {
-                    console.error("Redirect failed:", redirectError);
-                    showMessage("Unable to sign in with Google", 'signUpMessage');
-                }
-            } else if (error.code === 'auth/popup-closed-by-user') {
-                showMessage('Sign-in cancelled', 'signUpMessage');
-            } else if (error.code === 'auth/unauthorized-domain') {
-                alert("Configuration Error: Please add '" + window.location.origin + "' to authorized domains in Firebase Console.");
-            } else {
-                showMessage("Google Sign-Up failed: " + error.message, 'signUpMessage');
-            }
+        if (cred.user.emailVerified) {
+            showMessage("Your email is already verified! You can sign in now.", "signInMessage");
+            await auth.signOut();
+            return;
         }
-    });
-}
-
-// Google Sign-In (from Sign In form)
-const googleSignInBtn = document.getElementById('googleSignInBtn');
-
-if (googleSignInBtn) {
-    googleSignInBtn.addEventListener('click', async () => {
-        const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({
-            prompt: 'select_account'
-        });
         
-        try {
-            const result = await signInWithPopup(auth, provider);
-            const success = await handleSocialSignIn(result.user, 'google', 'signInMessage');
-            
-            if (success) {
-                showMessage('Sign in successful! Redirecting...', 'signInMessage');
-                setTimeout(() => {
-                    window.location.href = "homepage.html";
-                }, 1000);
-            }
-            
-        } catch (error) {
-            console.error("Google Sign-In error:", error.code);
-            
-            if (error.code === 'auth/popup-blocked') {
-                showMessage('Popup blocked. Using redirect instead...', 'signInMessage');
-                sessionStorage.setItem('socialAuthType', 'signin');
-                try {
-                    await signInWithRedirect(auth, provider);
-                } catch (redirectError) {
-                    console.error("Redirect failed:", redirectError);
-                    showMessage("Unable to sign in with Google", 'signInMessage');
-                }
-            } else if (error.code === 'auth/popup-closed-by-user') {
-                showMessage('Sign-in cancelled', 'signInMessage');
-            } else if (error.code === 'auth/unauthorized-domain') {
-                alert("Configuration Error: Please add '" + window.location.origin + "' to authorized domains in Firebase Console.");
-            } else {
-                showMessage("Google Sign-In failed: " + error.message, 'signInMessage');
-            }
-        }
-    });
-}
-
-// Facebook Sign-Up (from Sign Up form)
-const facebookSignUpBtn = document.getElementById('facebookSignUpBtn');
-
-if (facebookSignUpBtn) {
-    facebookSignUpBtn.addEventListener('click', async () => {
-        const provider = new FacebookAuthProvider();
-        provider.addScope('email');
-        provider.addScope('public_profile');
+        const actionCodeSettings = {
+            url: window.location.origin + '/index.html',
+            handleCodeInApp: true
+        };
         
-        try {
-            const result = await signInWithPopup(auth, provider);
-            const success = await handleSocialSignUp(result.user, 'facebook', 'signUpMessage');
-            
-            if (success) {
-                showMessage('Sign up successful! Redirecting...', 'signUpMessage');
-                setTimeout(() => {
-                    window.location.href = "homepage.html";
-                }, 1000);
-            }
-            
-        } catch (error) {
-            console.error("Facebook Sign-Up error:", error.code);
-            
-            if (error.code === 'auth/popup-blocked') {
-                showMessage('Popup blocked. Using redirect instead...', 'signUpMessage');
-                sessionStorage.setItem('socialAuthType', 'signup');
-                try {
-                    await signInWithRedirect(auth, provider);
-                } catch (redirectError) {
-                    console.error("Redirect failed:", redirectError);
-                    showMessage("Unable to sign in with Facebook", 'signUpMessage');
-                }
-            } else if (error.code === 'auth/popup-closed-by-user') {
-                showMessage('Sign-in cancelled', 'signUpMessage');
-            } else if (error.code === 'auth/account-exists-with-different-credential') {
-                showMessage('An account already exists with this email using a different sign-in method', 'signUpMessage');
-            } else if (error.code === 'auth/unauthorized-domain') {
-                alert("Configuration Error: Please add '" + window.location.origin + "' to authorized domains in Firebase Console.");
-            } else {
-                showMessage("Facebook Sign-Up failed: " + error.message, 'signUpMessage');
-            }
-        }
-    });
-}
-
-// Facebook Sign-In (from Sign In form)
-const facebookSignInBtn = document.getElementById('facebookSignInBtn');
-
-if (facebookSignInBtn) {
-    facebookSignInBtn.addEventListener('click', async () => {
-        const provider = new FacebookAuthProvider();
-        provider.addScope('email');
-        provider.addScope('public_profile');
+        await sendEmailVerification(cred.user, actionCodeSettings);
         
-        try {
-            const result = await signInWithPopup(auth, provider);
-            const success = await handleSocialSignIn(result.user, 'facebook', 'signInMessage');
-            
-            if (success) {
-                showMessage('Sign in successful! Redirecting...', 'signInMessage');
-                setTimeout(() => {
-                    window.location.href = "homepage.html";
-                }, 1000);
-            }
-            
-        } catch (error) {
-            console.error("Facebook Sign-In error:", error.code);
-            
-            if (error.code === 'auth/popup-blocked') {
-                showMessage('Popup blocked. Using redirect instead...', 'signInMessage');
-                sessionStorage.setItem('socialAuthType', 'signin');
-                try {
-                    await signInWithRedirect(auth, provider);
-                } catch (redirectError) {
-                    console.error("Redirect failed:", redirectError);
-                    showMessage("Unable to sign in with Facebook", 'signInMessage');
-                }
-            } else if (error.code === 'auth/popup-closed-by-user') {
-                showMessage('Sign-in cancelled', 'signInMessage');
-            } else if (error.code === 'auth/account-exists-with-different-credential') {
-                showMessage('An account already exists with this email using a different sign-in method', 'signInMessage');
-            } else if (error.code === 'auth/unauthorized-domain') {
-                alert("Configuration Error: Please add '" + window.location.origin + "' to authorized domains in Firebase Console.");
-            } else {
-                showMessage("Facebook Sign-In failed: " + error.message, 'signInMessage');
-            }
+        showMessage(
+            `<strong>Verification Email Sent!</strong><br><br>
+            Check your inbox at <strong>${email}</strong><br>
+            (Don't forget to check spam/junk folder)<br><br>
+            Click the link in the email to verify your account.`,
+            "signInMessage"
+        );
+        
+        await auth.signOut();
+        
+    } catch (error) {
+        console.error("Resend failed:", error);
+        
+        let errorMsg = "Failed to resend verification email. ";
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+            errorMsg = "Incorrect password. Please check your credentials.";
+        } else if (error.code === 'auth/too-many-requests') {
+            errorMsg = "Too many requests. Please wait a few minutes before trying again.";
+        } else {
+            errorMsg += error.message;
         }
-    });
-}
+        
+        showMessage(errorMsg, "signInMessage");
+    }
+};
