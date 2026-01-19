@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Book Library - Auth</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
         * {
             margin: 0;
@@ -71,7 +72,6 @@
             border-radius: 5px;
             font-size: 14px;
             transition: border-color 0.3s;
-            font-family: inherit;
         }
 
         .input-group input:focus {
@@ -108,42 +108,41 @@
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            transition: transform 0.3s, box-shadow 0.3s;
             margin-top: 10px;
         }
 
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        .btn-secondary {
+            background: #6c757d;
+            margin-top: 10px;
+            font-size: 14px;
+            padding: 10px;
         }
 
         .or {
             text-align: center;
             margin: 20px 0;
             color: #999;
-            position: relative;
         }
 
         .icons {
             display: flex;
             justify-content: center;
-            gap: 15px;
             margin: 20px 0;
         }
 
         .icon-btn {
-            width: 40px;
-            height: 40px;
+            width: 45px;
+            height: 45px;
             border: 2px solid #e0e0e0;
             border-radius: 50%;
             background: white;
             cursor: pointer;
-            transition: all 0.3s;
-            font-size: 18px;
+            font-size: 20px;
             color: #667eea;
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.3s;
         }
 
         .icon-btn:hover {
@@ -169,94 +168,107 @@
             font-weight: bold;
         }
 
-        .links a:hover {
-            text-decoration: underline;
-        }
-
         .hidden {
             display: none;
         }
 
-        @media (max-width: 480px) {
-            .container {
-                padding: 30px 20px;
-            }
-
-            .form-title {
-                font-size: 24px;
-            }
+        .debug-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-size: 12px;
+            color: #666;
         }
     </style>
 </head>
 <body>
-    <!-- Sign Up Form -->
-    <div class="container" id="signup">
-        <h1 class="form-title">Register</h1>
-        <div class="message" id="signUpMessage"></div>
-        <form>
-            <div class="input-group">
-                <i class="fas fa-user"></i>
-                <input type="text" id="nickname" placeholder="Nickname" required>
-                <label for="nickname">Nickname</label>
-            </div>
-            <div class="input-group">
-                <i class="fas fa-envelope"></i>
-                <input type="email" id="rEmail" placeholder="Email" required>
-                <label for="rEmail">Email</label>
-            </div>
-            <div class="input-group">
-                <i class="fas fa-lock"></i>
-                <input type="password" id="rPassword" placeholder="Password" required>
-                <label for="rPassword">Password</label>
-            </div>
-            <button type="button" class="btn" id="submitSignUp">Sign Up</button>
-        </form>
-        <p class="or">---------- or ----------</p>
-        <div class="icons">
-            <button type="button" class="icon-btn" id="googleSignUpBtn">
-                <i class="fab fa-google"></i>
-            </button>
-            <button type="button" class="icon-btn" id="facebookSignUpBtn" title="Requires Facebook app setup">
-                <i class="fab fa-facebook"></i>
-            </button>
+
+<!-- SIGN UP -->
+<div class="container" id="signup">
+    <h1 class="form-title">Register</h1>
+    <div class="message" id="signUpMessage"></div>
+
+    <form>
+        <div class="input-group">
+            <i class="fas fa-user"></i>
+            <input type="text" id="nickname" required>
+            <label>Nickname</label>
         </div>
-        <div class="links">
-            <p>Already have an account? <a id="signInLink">Sign In</a></p>
+
+        <div class="input-group">
+            <i class="fas fa-envelope"></i>
+            <input type="email" id="rEmail" required>
+            <label>Email</label>
         </div>
+
+        <div class="input-group">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="rPassword" required>
+            <label>Password</label>
+        </div>
+
+        <button type="button" class="btn" id="submitSignUp">Sign Up</button>
+    </form>
+
+    <p class="or">---------- or ----------</p>
+
+    <div class="icons">
+        <button type="button" class="icon-btn" id="googleSignUpBtn">
+            <i class="fab fa-google"></i>
+        </button>
     </div>
 
-    <!-- Sign In Form -->
-    <div class="container hidden" id="signin">
-        <h1 class="form-title">Sign In</h1>
-        <div class="message" id="signInMessage"></div>
-        <form>
-            <div class="input-group">
-                <i class="fas fa-envelope"></i>
-                <input type="email" id="logEmail" placeholder="Email" required>
-                <label for="logEmail">Email</label>
-            </div>
-            <div class="input-group">
-                <i class="fas fa-lock"></i>
-                <input type="password" id="logPassword" placeholder="Password" required>
-                <label for="logPassword">Password</label>
-            </div>
-            <button type="button" class="btn" id="submitSignIn">Sign In</button>
-        </form>
-        <p class="or">---------- or ----------</p>
-        <div class="icons">
-            <button type="button" class="icon-btn" id="googleSignInBtn">
-                <i class="fab fa-google"></i>
-            </button>
-            <button type="button" class="icon-btn" id="facebookSignInBtn" title="Requires Facebook app setup">
-                <i class="fab fa-facebook"></i>
-            </button>
-        </div>
-        <div class="links">
-            <p>Don't have an account? <a id="signUpLink">Sign Up</a></p>
-        </div>
+    <div class="links">
+        <p>Already have an account? <a id="signInLink">Sign In</a></p>
     </div>
 
-    <!-- Firebase Auth Script -->
-    <script type="module" src="firebaseauth.js"></script>
+    <div class="debug-info">
+        💡 Tip: Check browser console (F12) for detailed logs
+    </div>
+</div>
+
+<!-- SIGN IN -->
+<div class="container hidden" id="signin">
+    <h1 class="form-title">Sign In</h1>
+    <div class="message" id="signInMessage"></div>
+
+    <form>
+        <div class="input-group">
+            <i class="fas fa-envelope"></i>
+            <input type="email" id="logEmail" required>
+            <label>Email</label>
+        </div>
+
+        <div class="input-group">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="logPassword" required>
+            <label>Password</label>
+        </div>
+
+        <button type="button" class="btn" id="submitSignIn">Sign In</button>
+        <button type="button" class="btn btn-secondary" onclick="resendVerificationEmail()">
+            Resend Verification Email
+        </button>
+    </form>
+
+    <p class="or">---------- or ----------</p>
+
+    <div class="icons">
+        <button type="button" class="icon-btn" id="googleSignInBtn">
+            <i class="fab fa-google"></i>
+        </button>
+    </div>
+
+    <div class="links">
+        <p>Don't have an account? <a id="signUpLink">Sign Up</a></p>
+    </div>
+
+    <div class="debug-info">
+        📧 Haven't received the verification email? Click "Resend" above after signing in
+    </div>
+</div>
+
+<script type="module" src="firebaseauth.js"></script>
 </body>
 </html>
